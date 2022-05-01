@@ -79,7 +79,11 @@ func newInsertSet(orm *orm, mi *modelInfo) (Inserter, error) {
 		return nil, err
 	}
 	if Debug {
-		bi.stmt = newStmtQueryLog(orm.alias, st, query)
+		if orm.context != nil {
+			bi.stmt = newStmtQueryLogWithContext(orm.context, orm.alias, st, query)
+		} else {
+			bi.stmt = newStmtQueryLog(orm.alias, st, query)
+		}
 	} else {
 		bi.stmt = st
 	}

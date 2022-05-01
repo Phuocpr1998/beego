@@ -93,9 +93,10 @@ type Params map[string]interface{}
 type ParamsList []interface{}
 
 type orm struct {
-	alias *alias
-	db    dbQuerier
-	isTx  bool
+	alias   *alias
+	db      dbQuerier
+	isTx    bool
+	context context.Context
 }
 
 var _ Ormer = new(orm)
@@ -461,6 +462,23 @@ func (o *orm) Using(name string) error {
 	return nil
 }
 
+func (o *orm) UsingWithContext(name string, ctx context.Context) error {
+	if o.isTx {
+		panic(fmt.Errorf("<Ormer.Using> transaction has been start, cannot change db"))
+	}
+	if al, ok := dataBaseCache.get(name); ok {
+		o.alias = al
+		if Debug {
+			o.db = newDbQueryLogWithContext(ctx, al, al.DB)
+		} else {
+			o.db = al.DB
+		}
+	} else {
+		return fmt.Errorf("<Ormer.Using> unknown db alias name `%s`", name)
+	}
+	return nil
+}
+
 // begin transaction
 func (o *orm) Begin() error {
 	return o.BeginTx(context.Background(), nil)
@@ -545,6 +563,19 @@ func NewOrm() Ormer {
 	return o
 }
 
+// NewOrm create new orm
+func NewOrmWithContext(context context.Context) Ormer {
+	BootStrap() // execute only once
+
+	o := new(orm)
+	o.context = context
+	err := o.UsingWithContext("default", o.context)
+	if err != nil {
+		panic(err)
+	}
+	return o
+}
+
 // NewOrmWithDB create a new ormer object with specify *sql.DB for query
 func NewOrmWithDB(driverName, aliasName string, db *sql.DB) (Ormer, error) {
 	var al *alias
@@ -572,6 +603,40 @@ func NewOrmWithDB(driverName, aliasName string, db *sql.DB) (Ormer, error) {
 
 	if Debug {
 		o.db = newDbQueryLog(o.alias, db)
+	} else {
+		o.db = db
+	}
+
+	return o, nil
+}
+
+func NewOrmWithDBWithContext(context context.Context, driverName, aliasName string, db *sql.DB) (Ormer, error) {
+	var al *alias
+
+	if dr, ok := drivers[driverName]; ok {
+		al = new(alias)
+		al.DbBaser = dbBasers[dr]
+		al.Driver = dr
+	} else {
+		return nil, fmt.Errorf("driver name `%s` have not registered", driverName)
+	}
+
+	al.Name = aliasName
+	al.DriverName = driverName
+	al.DB = &DB{
+		RWMutex:        new(sync.RWMutex),
+		DB:             db,
+		stmtDecorators: newStmtDecoratorLruWithEvict(),
+	}
+
+	detectTZ(al)
+
+	o := new(orm)
+	o.alias = al
+	o.context = context
+
+	if Debug {
+		o.db = newDbQueryLogWithContext(context, o.alias, db)
 	} else {
 		o.db = db
 	}

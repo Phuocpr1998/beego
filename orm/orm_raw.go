@@ -54,7 +54,11 @@ func newRawPreparer(rs *rawSet) (RawPreparer, error) {
 		return nil, err
 	}
 	if Debug {
-		o.stmt = newStmtQueryLog(rs.orm.alias, st, query)
+		if rs.orm.context != nil {
+			o.stmt = newStmtQueryLogWithContext(rs.orm.context, rs.orm.alias, st, query)
+		} else {
+			o.stmt = newStmtQueryLog(rs.orm.alias, st, query)
+		}
 	} else {
 		o.stmt = st
 	}
