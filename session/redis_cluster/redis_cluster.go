@@ -20,8 +20,8 @@
 //
 // Usage:
 // import(
-//   _ "github.com/astaxie/beego/session/redis_cluster"
-//   "github.com/astaxie/beego/session"
+//   _ "github.com/Phuocpr1998/beego/session/redis_cluster"
+//   "github.com/Phuocpr1998/beego/session"
 // )
 //
 //	func init() {
@@ -39,7 +39,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/astaxie/beego/session"
+	"github.com/Phuocpr1998/beego/session"
 	rediss "github.com/go-redis/redis"
 )
 
